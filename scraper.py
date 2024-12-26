@@ -218,4 +218,3 @@ async def extract_business_info(page: Page, listing: Locator):
         return None
 
     return business
-

@@ -11,6 +11,7 @@ socketio = SocketIO(app, async_mode='eventlet')
 def index():
     return render_template('index.html')
 
+
 @app.route('/start_scraping', methods=['POST'])
 def start_scraping():
     search_term = request.form['search_term']
@@ -18,10 +19,10 @@ def start_scraping():
     search_list = [search_term]
     quantities = [total]
 
-    socketio.start_background_task(asyncio.run, main
-    (search_list, quantities, socketio))
+    socketio.start_background_task(asyncio.run, main(search_list, quantities, socketio))
     return jsonify({"message": "Scraping started!"})
 
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True)
+    # Only for development purposes
+    socketio.run(app, host='0.0.0.0', port=8000)

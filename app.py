@@ -24,5 +24,4 @@ def start_scraping():
 
 
 if __name__ == '__main__':
-    # Only for development purposes
     socketio.run(app, port=8000)

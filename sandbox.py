@@ -1,10 +1,9 @@
 from playwright.async_api import async_playwright, TimeoutError, Page, Locator
 from dataclasses import dataclass, asdict, field
-import logging
 import pandas as pd
+import logging
+import asyncio
 import re
-
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @dataclass
@@ -19,7 +18,6 @@ class Business:
     twitter: str = ""
     linkedin: str = ""
 
-
 @dataclass
 class BusinessList:
     business_list: list[Business] = field(default_factory=list)
@@ -28,6 +26,7 @@ class BusinessList:
         return pd.json_normalize(
             (asdict(business) for business in self.business_list), sep="_"
         )
+
 
 
 async def extract_emails_from_page(page: Page):
@@ -52,6 +51,7 @@ async def extract_social_media_links(page: Page):
     
     content = await page.content()
     
+    # Search for social media links
     for platform in social_media_links.keys():
         pattern = rf"https?:\/\/(www\.)?{platform.lower()}\.com\/(\w+)\/?"
         match = re.search(pattern, content)
@@ -60,6 +60,7 @@ async def extract_social_media_links(page: Page):
         else:
             social_media_links[platform] = "None"
 
+    # Specific patterns for LinkedIn
     linkedin_pattern_company = r"https?://(www\.)?linkedin\.com/company/([\w-]+)/?"
     linkedin_pattern_personal = r"https?://(www\.)?linkedin\.com/in/([\w-]+)/?"
 
@@ -73,10 +74,9 @@ async def extract_social_media_links(page: Page):
 
     return social_media_links
 
-
-async def main(search_list, quantities, socketio):
+async def main(search_list, quantities):
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True)  # Launch in headless mode for production
         page = await browser.new_page()
 
         try:
@@ -86,18 +86,13 @@ async def main(search_list, quantities, socketio):
             for search_for, total in zip(search_list, quantities):
                 logging.info(f"Searching for {search_for} with quantity: {total}")
                 listings = await scrape_listings(page, search_for, total)
-                
-                if not listings:
-                    logging.warning(f"No listings found for {search_for}")
-                    continue
-
-                async for business in scrape_business_details(page, listings, socketio):
-                    business_list.business_list.append(business)
+                businesses = await scrape_business_details(page, listings)
+                business_list.business_list.extend(businesses.business_list)
 
             return business_list
         except Exception as e:
             logging.error(f"An error occurred in the main process: {e}")
-            return BusinessList()  
+            return None
         finally:
             await browser.close()
 
@@ -127,12 +122,12 @@ async def scrape_listings(page, search_for, total):
 
             current_count = await page.locator('a[href*="https://www.google.com/maps/place"]').count()
             if current_count >= total:
-                listings = await page.locator('a[href*="https://www.google.com/maps/place"]').all()
-                listings = listings[:total]  
+                listings = await page.locator('a[href*="https://www.google.com/maps/place"]').all()  # Await the result
+                listings = listings[:total]  # Now you can slice the list
                 logging.info(f"Total Scraped: {len(listings)}")
                 return listings
             elif current_count == previously_counted:
-                listings = await page.locator('a[href*="https://www.google.com/maps/place"]').all()
+                listings = await page.locator('a[href*="https://www.google.com/maps/place"]').all()  # Await the result
                 logging.info(f"Arrived at all available\nTotal Scraped: {len(listings)}")
                 return listings
             else:
@@ -142,22 +137,20 @@ async def scrape_listings(page, search_for, total):
         logging.error(f"Error scraping listings: {e}")
         return []
 
-async def scrape_business_details(page, listings, socketio):
+async def scrape_business_details(page, listings):
+    business_list = BusinessList()
+    
     for listing in listings:
         try:
-            if listing is None:
-                logging.warning("Encountered a NoneType listing. Skipping.")
-                continue
-
             await listing.click()
-            await page.wait_for_timeout(2000)  
+            await page.wait_for_timeout(2000)  # Wait for page to load completely
             business = await extract_business_info(page, listing)
             if business:
-                socketio.emit('business_data', asdict(business))
-                await socketio.sleep(0) 
-                yield business  
+                business_list.business_list.append(business)
         except Exception as e:
-            logging.error(f"Error occurred while scraping business details: {e}")
+            logging.error(f'Error occurred while scraping business details: {e}')
+    
+    return business_list
 
 async def extract_business_info(page: Page, listing: Locator):
     """
@@ -169,28 +162,21 @@ async def extract_business_info(page: Page, listing: Locator):
     phone_number_xpath = '//button[contains(@data-item-id, "phone:tel:")]//div[contains(@class, "fontBodyMedium")]'
     website_url_xpath = '//a[@data-item-id="authority"]'
 
-
     business = Business()
 
     try:
         business.name = await listing.get_attribute(name_attribute) or ""
-        if not business.name:
-            logging.warning("Name not found for the business.")
+        if len(business.name) < 1:
+            business.name = ""
 
         address_locator = page.locator(address_xpath)
         website_locator = page.locator(website_xpath)
         phone_number_locator = page.locator(phone_number_xpath)
         website_url_locator = page.locator(website_url_xpath)
 
-        business.address = (
-            await address_locator.inner_text() if await address_locator.count() > 0 else ""
-        )
-        business.website = (
-            await website_locator.inner_text() if await website_locator.count() > 0 else ""
-        )
-        business.phone_number = (
-            await phone_number_locator.inner_text() if await phone_number_locator.count() > 0 else ""
-        )
+        business.address = await address_locator.inner_text() if await address_locator.count() > 0 else ""
+        business.website = await website_locator.inner_text() if await website_locator.count() > 0 else ""
+        business.phone_number = await phone_number_locator.inner_text() if await phone_number_locator.count() > 0 else ""
 
         if await website_url_locator.count() > 0:
             try:
@@ -216,6 +202,33 @@ async def extract_business_info(page: Page, listing: Locator):
 
     except Exception as e:
         logging.error(f"Error retrieving data: {e}")
-        return None
 
     return business
+
+
+
+
+def business_to_table_row(business):
+    row = [
+        business.name,
+        business.address,
+        business.email,
+        business.website,
+        business.phone_number,
+        business.linkedin,
+        business.twitter,
+        business.facebook,
+        business.instagram,
+    ]
+    return row
+
+
+if __name__ == "__main__":
+    search_list = ["lawyers in New York"]
+    quantities = [40]
+    
+    result = asyncio.run(main(search_list, quantities))  # Running async function in main thread
+    if result:
+        df = result.dataframe()
+        df.to_csv("business_data.csv", index=False)
+        logging.info("Data saved to business_data.csv")

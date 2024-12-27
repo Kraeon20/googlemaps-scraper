@@ -154,7 +154,8 @@ async def scrape_business_details(page, listings, socketio):
             business = await extract_business_info(page, listing)
             if business:
                 socketio.emit('business_data', asdict(business))
-                await socketio.sleep(0) 
+                logging.info(f"Emitted business data: {asdict(business)}")
+                await socketio.sleep(2) 
                 yield business  
         except Exception as e:
             logging.error(f"Error occurred while scraping business details: {e}")
@@ -206,11 +207,13 @@ async def extract_business_info(page: Page, listing: Locator):
                 business.instagram = social_media_links.get("Instagram", "None")
                 business.twitter = social_media_links.get("Twitter", "None")
                 business.linkedin = social_media_links.get("LinkedIn", "None")
-
-                await new_page.close()
             except Exception as e:
                 logging.error(f"Error retrieving social media links: {e}")
                 business.facebook = business.instagram = business.twitter = business.linkedin = "None"
+            finally:
+                if new_page:
+                    await new_page.close()
+
         else:
             business.website = None
 

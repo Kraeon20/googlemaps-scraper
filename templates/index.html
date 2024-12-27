@@ -6,7 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Business Scraper</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
+    <link rel="stylesheet" href="/static/css/styles.css">
     <script src="{{ url_for('static', filename='js/script.js') }}" defer></script>
 </head>
 
@@ -29,7 +31,9 @@
                                 placeholder="Enter total number to scrape">
                         </div>
                     </div>
-                    <button type="submit"><i class="fas fa-search"></i> Start Scraping</button>
+                    <button type="submit">
+                        <i class="fas fa-search"></i> Start Scraping
+                    </button>
                 </form>
             </div>
             <div class="table-container">

@@ -52,7 +52,10 @@ form input {
 }
 
 form button {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
     padding: 10px;
     margin-top: 15px;
@@ -64,6 +67,10 @@ form button {
     border: none;
     border-radius: 5px;
     transition: background-color 0.3s;
+}
+
+form button i {
+    font-size: 16px;
 }
 
 form button:hover {
@@ -80,7 +87,7 @@ form button:hover {
 }
 
 .table-scroll {
-    max-height: 300px;
+    max-height: 500px;
     overflow-y: auto;
     overflow-x: auto;
 }
@@ -116,13 +123,50 @@ table tbody tr:hover {
     background-color: #eaf6ff;
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
-    .table-scroll {
-        max-height: 200px;
+    .form-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .form-group {
+        flex: none;
+        width: 100%;
+    }
+
+    .form-container {
+        padding: 10px;
     }
 
     table th,
     table td {
         font-size: 12px;
+        padding: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 18px;
+        margin-top: 15px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    form button {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    table th,
+    table td {
+        font-size: 10px;
+    }
+
+    .table-scroll {
+        max-height: 150px;
     }
 }

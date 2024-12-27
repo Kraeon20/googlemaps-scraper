@@ -1,6 +1,7 @@
 const socket = io.connect();
 
 socket.on('business_data', (data) => {
+    console.log('Received data:', data); // Debugging
     const table = document.getElementById('dataTable');
     const row = document.createElement('tr');
     row.innerHTML = `
@@ -13,10 +14,10 @@ socket.on('business_data', (data) => {
         <td>${data.instagram || 'None'}</td>
         <td>${data.twitter || 'None'}</td>
         <td>${data.linkedin || 'None'}</td>
-        
     `;
     table.appendChild(row);
 });
+
 
 document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
     e.preventDefault();
